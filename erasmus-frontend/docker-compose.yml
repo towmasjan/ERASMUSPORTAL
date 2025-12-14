@@ -1,0 +1,94 @@
+version: '3.8'
+
+# Erasmus+ Youth Exchange - Complete Stack
+# Frontend (Next.js) + Backend (eventyay-server) + PostgreSQL + Redis
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgis/postgis:12-3.0-alpine
+    container_name: erasmus-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - erasmus_postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: open_event_user
+      POSTGRES_PASSWORD: opev_pass
+      POSTGRES_DB: open_event
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U open_event_user -d open_event"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: erasmus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - erasmus_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (eventyay-server)
+  backend:
+    image: eventyay/open-event-server:development
+    container_name: erasmus-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://open_event_user:opev_pass@postgres:5432/open_event
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: erasmus-secret-key-change-in-production
+      APP_CONFIG: config.DevelopmentConfig
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Mount Erasmus+ customizations
+      - ../eventyay-server/app/models:/data/app/app/models:ro
+      - ../eventyay-server/app/api/schema:/data/app/app/api/schema:ro
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erasmus-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8080
+    depends_on:
+      - backend
+
+  # Nginx Reverse Proxy (optional, for production)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: erasmus-proxy
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - frontend
+  #     - backend
+
+volumes:
+  erasmus_postgres:
+  erasmus_redis:
+
