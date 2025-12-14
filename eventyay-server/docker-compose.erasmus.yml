@@ -1,0 +1,62 @@
+version: '3.5'
+
+# Erasmus+ Development Setup
+# Runs the server with local code mounted
+
+x-environment-vars: &environment-vars
+  POSTGRES_HOST: postgres
+  DATABASE_URL: postgresql://open_event_user:opev_pass@postgres:5432/open_event
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: erasmus-dev-secret-key-change-in-production
+  APP_CONFIG: config.DevelopmentConfig
+  ADMIN_EMAIL: admin@erasmus.eu
+  ADMIN_PASSWORD: admin123
+
+services:
+  postgres:
+    image: postgis/postgis:12-3.0-alpine
+    container_name: erasmus-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - erasmus_pg:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: open_event_user
+      POSTGRES_PASSWORD: opev_pass
+      POSTGRES_DB: open_event
+
+  redis:
+    image: redis:3-alpine
+    container_name: erasmus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server
+    volumes:
+      - erasmus_rd:/var/lib/redis/data
+
+  web:
+    image: eventyay/open-event-server:development
+    container_name: erasmus-web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *environment-vars
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      # Mount our local code changes
+      - ./app/models:/data/app/app/models:ro
+      - ./app/api/schema:/data/app/app/api/schema:ro
+      - ./app/api/partner_organizations.py:/data/app/app/api/partner_organizations.py:ro
+      - ./app/api/routes.py:/data/app/app/api/routes.py:ro
+      - ./static:/data/app/static
+      - ./generated:/data/app/generated
+
+volumes:
+  erasmus_pg:
+  erasmus_rd:
+
