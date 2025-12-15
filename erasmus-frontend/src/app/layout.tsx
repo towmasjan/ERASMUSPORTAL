@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Outfit } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/lib/providers';
+import { AIChat } from '@/components/ai-chat';
 
 const outfit = Outfit({
   subsets: ['latin', 'latin-ext'],
@@ -24,7 +25,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.variable} font-sans`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <AIChat />
+        </Providers>
       </body>
     </html>
   );
